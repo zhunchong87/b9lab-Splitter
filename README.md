@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Project 1 - Splitter
 ## How to start
 1. Run `truffle develop` to initialize the dev environment.
