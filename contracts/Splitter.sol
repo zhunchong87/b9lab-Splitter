@@ -5,6 +5,7 @@ contract Splitter{
 	mapping(address => uint) withdrawBalances;
 
 	function Splitter(address alice, address bob, address carol) public{
+		require(alice != address(0) && bob != address(0) && carol != address(0));
 		people[0] = alice;
 		people[1] = bob;
 		people[2] = carol;
