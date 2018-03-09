@@ -30,9 +30,17 @@ contract Splitter{
 		payable 
 	{
 		require(msg.value > 0);
+		uint amt = msg.value / 2;
+		uint reminder = msg.value % 2;
+
 		for(uint8 i=0; i<people.length; i++){
+			// Split amount the other 2 person
 			if(msg.sender != people[i]){
-				withdrawBalances[people[i]] += msg.value / 2;
+				withdrawBalances[people[i]] += amt;
+			}
+			// Return reminder back to sender
+			else if(msg.sender == people[i] && reminder > 0){
+				withdrawBalances[people[i]] += reminder;
 			}
 		}
 	}
@@ -57,17 +65,6 @@ contract Splitter{
 		require(withdrawBalances[msg.sender] > 0);
 		msg.sender.transfer(withdrawBalances[msg.sender]);
 		withdrawBalances[msg.sender] = 0;
-	}
-
-	/*
-		Returns the current Splitter contract balance
-	*/
-	function getContractBalance()
-		view
-		public
-		returns (uint)
-	{
-		return this.balance;
 	}
 
 	/*
