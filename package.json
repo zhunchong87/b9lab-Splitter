@@ -1,0 +1,25 @@
+{
+  "name": "project1-splitter",
+  "version": "1.0.0",
+  "description": "B9Lab Project 1 - Splitter",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhunchong87/project1-splitter.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zhunchong87/project1-splitter/issues"
+  },
+  "dependencies": {
+    "bluebird": "latest"
+  },
+  "homepage": "https://github.com/zhunchong87/project1-splitter#readme"
+}
