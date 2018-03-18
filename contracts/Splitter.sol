@@ -1,75 +1,52 @@
 pragma solidity ^0.4.17;
 
 contract Splitter{
-	address[3] people;
-	mapping(address => uint) withdrawBalances;
+	mapping(address => uint) public withdrawBalances;
+	event LogSplit(address indexed sender, address bob, address carol, uint amount);
+	event LogWithdraw(address indexed withdrawer, uint amount);
 
-	function Splitter(address alice, address bob, address carol) public{
-		require(alice != address(0) && bob != address(0) && carol != address(0));
-		people[0] = alice;
-		people[1] = bob;
-		people[2] = carol;
+	function Splitter() public{
 	}
 
 	/*
-		Returns the people associated with the Splitter contract.
+		Splits the amount received equally between two person.
 	*/
-	function getPeople() 
-		view 
-		public 
-		returns(address[3])
-	{
-		return people;
-	}
-
-	/*
-		Splits the amount received equally between the other two person.
-	*/
-	function sendEther() 
+	function splitEther(address bob, address carol) 
 		public 
 		payable 
 	{
+		require(bob != address(0) && carol != address(0));
 		require(msg.value > 0);
 		uint amt = msg.value / 2;
-		uint reminder = msg.value % 2;
+		uint remainder = msg.value % 2;
 
-		for(uint8 i=0; i<people.length; i++){
-			// Split amount the other 2 person
-			if(msg.sender != people[i]){
-				withdrawBalances[people[i]] += amt;
-			}
-			// Return reminder back to sender
-			else if(msg.sender == people[i] && reminder > 0){
-				withdrawBalances[people[i]] += reminder;
-			}
-		}
-	}
+		// Split amount
+		withdrawBalances[bob] += amt;
+		withdrawBalances[carol] += amt;
 
-	/*
-		Returns the withdrawal balance of the person
-	*/
-	function getWithdrawableBalance(address person) 
-		view
-		public
-		returns (uint)
-	{
-		return withdrawBalances[person];
+		// Return remainder back to sender
+		withdrawBalances[msg.sender] += remainder;
+		LogSplit(msg.sender, bob, carol, msg.value);
 	}
 
 	/*
 		Transfer the entire withdrawable funds to the person
 	*/
-	function withdrawBalance()
+	function withdraw()
 		public
 	{
-		require(withdrawBalances[msg.sender] > 0);
-		msg.sender.transfer(withdrawBalances[msg.sender]);
+		uint amt = withdrawBalances[msg.sender];
+		require(amt > 0);
 		withdrawBalances[msg.sender] = 0;
+		LogWithdraw(msg.sender, amt);
+
+		// Interact with untrusted address last.
+		msg.sender.transfer(amt);
 	}
 
 	/*
-	 	Do not accept any funds from other sources. Otherwise the contract's balance
-	 	will be inaccurate.
+	 	Do not accept any funds from other sources. 
+	 	Otherwise the contract's balance will be inaccurate.
 	*/
 	function() public payable{ revert(); }
 }
