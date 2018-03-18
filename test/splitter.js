@@ -1,103 +1,142 @@
 var Splitter = artifacts.require("./Splitter.sol");
-var Promise = require("bluebird");
+const Promise = require("bluebird");
+Promise.promisifyAll(web3.eth, { suffix: "Promise" });
 
 contract("Splitter", function(accounts){
 	// Declare test variables here
 	var splitterContract;
 	var owner = accounts[0];
-	const getBalancePromise = Promise.promisify(web3.eth.getBalance);
+	var alice = accounts[1];
+	var bob = accounts[2];
+	var carol = accounts[3];
 
 	// The unit of measurement here is ether
-	var evenFund = web3.toWei(web3.toBigNumber(2), "ether");
-	var oddFund = web3.toWei(web3.toBigNumber(2), "ether").plus(1);
+	var evenFund = web3.toWei(0.01, "ether");
+	var oddFund = evenFund + 1;
 
 	// Set the initial test state before running each test
-	beforeEach(function(){
-		return Splitter.new(accounts[1], accounts[2], accounts[3], {from: owner})
+	beforeEach("deploy new Splitter instance", function(){
+		return Splitter.new({from: owner})
 		.then(instance => splitterContract = instance);
 	});
 
 	// Write tests here
 	it("should accept funds and display the correct balance in the contract.", function(){
-		return splitterContract.sendEther({from: accounts[1], value: evenFund})
+		return splitterContract.splitEther(bob, carol, {from: alice, value: evenFund})
 		.then(function(txn){
-			return getBalancePromise(splitterContract.contract.address);
+			return web3.eth.getBalancePromise(splitterContract.address);
 		})
 		.then(function(contractBalance){
-			assert.equal(contractBalance.toString(10), evenFund, "Contract balance does not tally with the sender's fund sent.");
+			assert.strictEqual(contractBalance.toString(10), evenFund, "Contract balance does not tally with the sender's fund sent.");
 		});
 	});
 
-	it("should accept funds (even amount) from one person and split the funds to two person.", function(){
-		var people;
-		return splitterContract.sendEther({from: accounts[1], value: evenFund})
-		.then(function(txn){
-			return splitterContract.getPeople();
-		})
-		.then(function(_people){
-			people = _people;
-			return splitterContract.getWithdrawableBalance(people[1]);
-		})
-		.then(function(person1Balance){
-			assert.equal(person1Balance.toString(10), evenFund/2, "Balance is not split properly to person 1.");
-			return splitterContract.getWithdrawableBalance(people[2]);
-		})
-		.then(function(person2Balance){
-			assert.equal(person2Balance.toString(10), evenFund/2, "Balance is not split properly to person 2.");
+	describe("splitEther", function(){
+		it("should split even amount to two person.", function(){
+			return splitterContract.splitEther(bob, carol, {from: alice, value: evenFund})
+			.then(function(txn){
+				// Check split event is logged
+				assert.strictEqual(txn.logs.length, 1, 				"Split event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogSplit", 	"Event logged is not a Split event.");
+				assert.strictEqual(txn.logs[0].args.sender, alice, 	"Wrong sender.");
+				assert.strictEqual(txn.logs[0].args.bob, bob, 		"Wrong split recipients 1.");
+				assert.strictEqual(txn.logs[0].args.carol, carol, 	"Wrong split recipients 2.");
+				assert.strictEqual(txn.logs[0].args.amount.toString(10), evenFund, "Wrong sender amount.");
+				return splitterContract.withdrawBalances(bob);
+			})
+			.then(function(bobBalance){
+				assert.strictEqual(bobBalance.toNumber(10), evenFund/2, "Balance is not split properly to Bob.");
+				return splitterContract.withdrawBalances(carol);
+			})
+			.then(function(carolBalance){
+				assert.strictEqual(carolBalance.toNumber(10), evenFund/2, "Balance is not split properly to Carol.");
+			});
+		});
+
+		it("should split odd amount to two person. Remainder is accounted under sender's balance.", function(){
+			return splitterContract.splitEther(bob, carol, {from: alice, value: oddFund})
+			.then(function(txn){
+				// Check split event is logged
+				assert.strictEqual(txn.logs.length, 1, 				"Split event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogSplit", 	"Event logged is not a Split event.");
+				assert.strictEqual(txn.logs[0].args.sender, alice, 	"Wrong sender.");
+				assert.strictEqual(txn.logs[0].args.bob, bob, 		"Wrong split recipients 1.");
+				assert.strictEqual(txn.logs[0].args.carol, carol, 	"Wrong split recipients 2.");
+				assert.strictEqual(txn.logs[0].args.amount.toString(10), oddFund, "Wrong sender amount.");
+				return splitterContract.withdrawBalances(bob);
+			})
+			.then(function(bobBalance){
+				assert.strictEqual(bobBalance.toNumber(10), oddFund/2, "Balance is not split properly to Bob.");
+				return splitterContract.withdrawBalances(carol);
+			})
+			.then(function(carolBalance){
+				assert.strictEqual(carolBalance.toNumber(10), oddFund/2, "Balance is not split properly to Carol.");
+				return splitterContract.withdrawBalances(alice);
+			})
+			.then(function(senderBalance){
+				assert.strictEqual(senderBalance.toNumber(10), web3.toBigNumber(oddFund).mod(2).toNumber(10), "Balance remainder is not returned to Alice.");
+			});
 		});
 	});
 
-	it("should accept funds (odd amount) from one person and split the funds to two person. Reminder amount should be transferred to the sender's balance.", function(){
-		var people;
-		return splitterContract.sendEther({from: accounts[1], value: oddFund})
-		.then(function(txn){
-			return splitterContract.getPeople();
-		})
-		.then(function(_people){
-			people = _people;
-			return splitterContract.getWithdrawableBalance(people[1]);
-		})
-		.then(function(person1Balance){
-			assert.equal(person1Balance.toString(10), oddFund/2, "Balance is not split properly to person 1.");
-			return splitterContract.getWithdrawableBalance(people[2]);
-		})
-		.then(function(person2Balance){
-			assert.equal(person2Balance.toString(10), oddFund/2, "Balance is not split properly to person 2.");
-			return splitterContract.getWithdrawableBalance(people[0]);
-		})
-		.then(function(senderBalance){
-			assert.equal(senderBalance.toString(10), oddFund.mod(2), "Balance is not split properly to sender.");
+	describe("withdraw", function(){
+		beforeEach("split amount to the two recipients", function(){
+			return splitterContract.splitEther(bob, carol, {from: alice, value: evenFund})
+			.then(function(txn){
+				// Check split event is logged
+				assert.strictEqual(txn.logs.length, 1, 				"Split event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogSplit", 	"Event logged is not a Split event.");
+				assert.strictEqual(txn.logs[0].args.sender, alice, 	"Wrong sender.");
+				assert.strictEqual(txn.logs[0].args.bob, bob, 		"Wrong split recipients 1.");
+				assert.strictEqual(txn.logs[0].args.carol, carol, 	"Wrong split recipients 2.");
+				assert.strictEqual(txn.logs[0].args.amount.toString(10), evenFund, "Wrong sender amount.");				
+			});
+		});
+
+		it("should reduce the contract balance after withdrawal.", function(){
+			return splitterContract.withdraw({from: bob})
+			.then(function(txn){
+				// Check withdraw event is logged
+				assert.strictEqual(txn.logs.length, 1, "Withdraw event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogWithdraw", "Event logged is not a Withdraw event.");
+				assert.strictEqual(txn.logs[0].args.withdrawer, bob, "Wrong withdrawer.");
+				assert.strictEqual(txn.logs[0].args.amount.toNumber(10), evenFund/2, "Wrong withdrawal amount.");
+				return web3.eth.getBalancePromise(splitterContract.address);
+			})
+			.then(function(splitterBalance){
+				assert.strictEqual(splitterBalance.toNumber(10), evenFund/2, "Wrong contract balance.");
+			});
+		});
+
+		it("should allow the recipient to successfully withdraw the funds.", function(){
+			var bobInitialRealBalance;
+			var gasUsed, gasPrice;
+
+			return web3.eth.getBalancePromise(bob)
+			.then(function(_bobCurrentBalance){
+				bobInitialRealBalance = _bobCurrentBalance;
+				return splitterContract.withdraw({from: bob});
+			})
+			.then(function(txn){
+				// Check withdraw event is logged
+				assert.strictEqual(txn.logs.length, 1, "Withdraw event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogWithdraw", "Event logged is not a Withdraw event.");
+				assert.strictEqual(txn.logs[0].args.withdrawer, bob, "Wrong withdrawer.");
+				assert.strictEqual(txn.logs[0].args.amount.toNumber(10), evenFund/2, "Wrong withdrawal amount.");
+				gasUsed = txn.receipt.gasUsed;
+				return web3.eth.getTransactionPromise(txn.tx);
+			})
+			.then(function(txn){
+				gasPrice = txn.gasPrice;
+				return web3.eth.getBalancePromise(bob);
+			})
+			.then(function(_bobAfterWithdrawBalance){
+				var txnFee = gasPrice.times(gasUsed);
+				assert.strictEqual(_bobAfterWithdrawBalance.minus(bobInitialRealBalance).plus(txnFee).toNumber(10), 
+									evenFund/2, 
+									"Something is wrong with Bob's balance after withdrawal.");
+			});
 		});
 	});
 
-	it("should accept funds and 1 person should successfully withdraw his/her funds back.", function(){
-		var people;
-		var person1ContractBalance;
-		var person1InitialBalance;
-
-		return splitterContract.sendEther({from: accounts[1], value: evenFund})
-		.then(function(txn){
-			return splitterContract.getPeople();
-		})
-		.then(function(_people){
-			people = _people;
-			return splitterContract.getWithdrawableBalance(people[1]);
-		})
-		.then(function(_person1Balance){
-			assert.equal(_person1Balance.toString(10), evenFund/2, "Balance is not split properly to person 1.");
-			person1ContractBalance = _person1Balance;
-			return getBalancePromise(people[1]);
-		})
-		.then(function(_person1CurrentBalance){
-			person1InitialBalance = _person1CurrentBalance;
-			return splitterContract.withdrawBalance({from: people[1]});
-		})
-		.then(function(txn){
-			assert.strictEqual(txn.receipt.status, 1, "Something has gone wrong with withdrawal.");
-			return getBalancePromise(people[1]);
-		})
-		.then(function(_person1AfterWithdrawBalance){
-			assert.isBelow(web3.fromWei(_person1AfterWithdrawBalance.minus(person1InitialBalance), "ether"), 1, "Something is wrong with person 1 balance after withdrawal.");
-		});
-	});
 });
