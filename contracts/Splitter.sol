@@ -1,8 +1,9 @@
 pragma solidity ^0.4.17;
+import "./Pausable.sol";
 
-contract Splitter{
+contract Splitter is Pausable{
 	mapping(address => uint) public withdrawBalances;
-	event LogSplit(address indexed sender, address bob, address carol, uint amount);
+	event LogSplit(address indexed sender, address indexed bob, address indexed carol, uint amount);
 	event LogWithdraw(address indexed withdrawer, uint amount);
 
 	function Splitter() public{
@@ -14,6 +15,7 @@ contract Splitter{
 	function splitEther(address bob, address carol) 
 		public 
 		payable 
+		onlyActive()
 	{
 		require(bob != address(0) && carol != address(0));
 		require(msg.value > 0);
@@ -34,6 +36,7 @@ contract Splitter{
 	*/
 	function withdraw()
 		public
+		onlyActive()
 	{
 		uint amt = withdrawBalances[msg.sender];
 		require(amt > 0);
