@@ -161,6 +161,9 @@ contract("Splitter", function(accounts){
 
 		it("should not allow others to pause the contract.", function(){
 			return splitterContract.pause({from: bob})
+			.then(function(){
+				assert.fail();
+			})
 			.catch(function(err){
 				assert.include(err.message, "VM Exception while processing transaction: revert", "Error is not emitted.");
 			});
@@ -168,6 +171,9 @@ contract("Splitter", function(accounts){
 
 		it("should not allow others to resume the contract.", function(){
 			return splitterContract.resume({from: bob})
+			.then(function(){
+				assert.fail();
+			})
 			.catch(function(err){
 				assert.include(err.message, "VM Exception while processing transaction: revert", "Error is not emitted.");
 			});
@@ -201,6 +207,9 @@ contract("Splitter", function(accounts){
 				assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
 				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
 				return splitterContract.splitEther(bob, carol, {from: alice, value: amount})
+			})
+			.then(function(){
+				assert.fail();
 			})
 			.catch(function(err){
 				assert.include(err.message, "VM Exception while processing transaction: revert", "Error is not emitted.");
