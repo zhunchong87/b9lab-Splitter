@@ -15,7 +15,7 @@ contract("Splitter", function(accounts){
 
 	// Set the initial test state before running each test
 	beforeEach("deploy new Splitter instance", function(){
-		return Splitter.new({from: owner})
+		return Splitter.new(true, {from: owner})
 		.then(instance => splitterContract = instance);
 	});
 
@@ -146,16 +146,70 @@ contract("Splitter", function(accounts){
 				assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
 				assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
 				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+				assert.strictEqual(txn.logs[0].args.isActive, false, "Wrong active status.");
+			});
+		});
+
+		it("should not allow owner to pause the contract twice.", function(){
+			return splitterContract.pause({from: owner})
+			.then(function(txn){
+				// Check pause event is logged
+				assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
+				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+				assert.strictEqual(txn.logs[0].args.isActive, false, "Wrong active status.");
+				return splitterContract.pause({from: owner});
+			})
+			.then(function(){
+				assert.fail();
+			})
+			.catch(function(err){
+				assert.include(err.message, "VM Exception while processing transaction: revert", "Error is not emitted.");
 			});
 		});
 
 		it("should allow owner to resume the contract.", function(){
-			return splitterContract.resume({from: owner})
+			return splitterContract.pause({from: owner})
+			.then(function(txn){
+				// Check pause event is logged
+				assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
+				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+				assert.strictEqual(txn.logs[0].args.isActive, false, "Wrong active status.");
+				return splitterContract.resume({from: owner});
+			})
 			.then(function(txn){
 				// Check resume event is logged
 				assert.strictEqual(txn.logs.length, 1, "Resume event is not emitted.");
 				assert.strictEqual(txn.logs[0].event, "LogResume", "Event logged is not a Resume event.");
 				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+				assert.strictEqual(txn.logs[0].args.isActive, true, "Wrong active status.");
+			});
+		});
+
+		it("should not allow owner to resume the contract twice.", function(){
+			return splitterContract.pause({from: owner})
+			.then(function(txn){
+				// Check pause event is logged
+				assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
+				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+				assert.strictEqual(txn.logs[0].args.isActive, false, "Wrong active status.");
+				return splitterContract.resume({from: owner});
+			})
+			.then(function(txn){
+				// Check resume event is logged
+				assert.strictEqual(txn.logs.length, 1, "Resume event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogResume", "Event logged is not a Resume event.");
+				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+				assert.strictEqual(txn.logs[0].args.isActive, true, "Wrong active status.");
+				return splitterContract.resume({from: owner});
+			})
+			.then(function(){
+				assert.fail();
+			})
+			.catch(function(err){
+				assert.include(err.message, "VM Exception while processing transaction: revert", "Error is not emitted.");
 			});
 		});
 
@@ -179,25 +233,25 @@ contract("Splitter", function(accounts){
 			});
 		});
 
-		it("should allow owner to split when the contract is paused.", function(){
-			return splitterContract.pause({from: owner})
-			.then(function(txn){
-				// Check pause event is logged
-				assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
-				assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
-				assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
-				return splitterContract.splitEther(bob, carol, {from: owner, value: amount})
-			})
-			.then(function(txn){
-				// Check split event is logged
-				assert.strictEqual(txn.logs.length, 1, 				"Split event is not emitted.");
-				assert.strictEqual(txn.logs[0].event, "LogSplit", 	"Event logged is not a Split event.");
-				assert.strictEqual(txn.logs[0].args.sender, owner, 	"Wrong sender.");
-				assert.strictEqual(txn.logs[0].args.bob, bob, 		"Wrong split recipients 1.");
-				assert.strictEqual(txn.logs[0].args.carol, carol, 	"Wrong split recipients 2.");
-				assert.strictEqual(txn.logs[0].args.amount.toString(10), amount, "Wrong sender amount.");
-			})
-		});
+		// it("should allow owner to split when the contract is paused.", function(){
+		// 	return splitterContract.pause({from: owner})
+		// 	.then(function(txn){
+		// 		// Check pause event is logged
+		// 		assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
+		// 		assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
+		// 		assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
+		// 		return splitterContract.splitEther(bob, carol, {from: owner, value: amount})
+		// 	})
+		// 	.then(function(txn){
+		// 		// Check split event is logged
+		// 		assert.strictEqual(txn.logs.length, 1, 				"Split event is not emitted.");
+		// 		assert.strictEqual(txn.logs[0].event, "LogSplit", 	"Event logged is not a Split event.");
+		// 		assert.strictEqual(txn.logs[0].args.sender, owner, 	"Wrong sender.");
+		// 		assert.strictEqual(txn.logs[0].args.bob, bob, 		"Wrong split recipients 1.");
+		// 		assert.strictEqual(txn.logs[0].args.carol, carol, 	"Wrong split recipients 2.");
+		// 		assert.strictEqual(txn.logs[0].args.amount.toString(10), amount, "Wrong sender amount.");
+		// 	})
+		// });
 
 		it("should not allow others to split when the contract is paused.", function(){
 			return splitterContract.pause({from: owner})
