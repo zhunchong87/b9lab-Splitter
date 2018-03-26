@@ -6,7 +6,7 @@ contract Splitter is Pausable{
 	event LogSplit(address indexed sender, address indexed bob, address indexed carol, uint amount);
 	event LogWithdraw(address indexed withdrawer, uint amount);
 
-	function Splitter() public{
+	function Splitter(bool isActive) Pausable(isActive) public{
 	}
 
 	/*

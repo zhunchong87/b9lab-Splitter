@@ -4,12 +4,12 @@ contract Pausable {
     address public owner;
     bool isActive;
 
-    event LogResume(address indexed sender, string message);
-	event LogPause(address indexed sender, string message);
+    event LogResume(address indexed sender, bool isActive);
+	event LogPause(address indexed sender, bool isActive);
 
-    function Pausable() public {
+    function Pausable(bool _isActive) public {
         owner = msg.sender;
-        isActive = true;
+        isActive = _isActive;
     }
 
     modifier onlyOwner () {
@@ -18,23 +18,25 @@ contract Pausable {
     }
 
     modifier onlyActive () {
-        require(isActive == true || msg.sender == owner);
+        require(isActive == true);
         _;
     }
 
     function pause()
     	public
     	onlyOwner()
+        onlyActive()
 	{
 		isActive = false;
-		LogPause(msg.sender, "Contract is paused.");
+		LogPause(msg.sender, isActive);
 	}
 
 	function resume()
     	public
     	onlyOwner()
 	{
+        require(isActive == false);
 		isActive = true;
-		LogResume(msg.sender, "Contract is resumed.");
+		LogResume(msg.sender, isActive);
 	}
 }
