@@ -233,26 +233,6 @@ contract("Splitter", function(accounts){
 			});
 		});
 
-		// it("should allow owner to split when the contract is paused.", function(){
-		// 	return splitterContract.pause({from: owner})
-		// 	.then(function(txn){
-		// 		// Check pause event is logged
-		// 		assert.strictEqual(txn.logs.length, 1, "Pause event is not emitted.");
-		// 		assert.strictEqual(txn.logs[0].event, "LogPause", "Event logged is not a Pause event.");
-		// 		assert.strictEqual(txn.logs[0].args.sender, owner, "Wrong owner.");
-		// 		return splitterContract.splitEther(bob, carol, {from: owner, value: amount})
-		// 	})
-		// 	.then(function(txn){
-		// 		// Check split event is logged
-		// 		assert.strictEqual(txn.logs.length, 1, 				"Split event is not emitted.");
-		// 		assert.strictEqual(txn.logs[0].event, "LogSplit", 	"Event logged is not a Split event.");
-		// 		assert.strictEqual(txn.logs[0].args.sender, owner, 	"Wrong sender.");
-		// 		assert.strictEqual(txn.logs[0].args.bob, bob, 		"Wrong split recipients 1.");
-		// 		assert.strictEqual(txn.logs[0].args.carol, carol, 	"Wrong split recipients 2.");
-		// 		assert.strictEqual(txn.logs[0].args.amount.toString(10), amount, "Wrong sender amount.");
-		// 	})
-		// });
-
 		it("should not allow others to split when the contract is paused.", function(){
 			return splitterContract.pause({from: owner})
 			.then(function(txn){
@@ -271,4 +251,30 @@ contract("Splitter", function(accounts){
 		});
 	});
 
+	describe("setting owner", function(){
+		it("should allow owner to set the new contract owner.", function(){
+			return splitterContract.setOwner(alice, {from: owner})
+			.then(function(txn){
+				// Check setOwner event is logged
+				assert.strictEqual(txn.logs.length, 1, "Set owner event is not emitted.");
+				assert.strictEqual(txn.logs[0].event, "LogSetOwner", "Event logged is not a setOwner event.");
+				assert.strictEqual(txn.logs[0].args.oldOwner, owner, "Wrong old owner.");
+				assert.strictEqual(txn.logs[0].args.newOwner, alice, "Wrong new owner.");
+				return splitterContract.getOwner();
+			})
+			.then(function(_owner){
+				assert.strictEqual(_owner, alice, "Wrong owner set.");
+			});
+		});
+
+		it("should not allow others to set the new contract owner.", function(){
+			return splitterContract.setOwner(alice, {from: alice})
+			.then(function(){
+				assert.fail();
+			})
+			.catch(function(err){
+				assert.include(err.message, "VM Exception while processing transaction: revert", "Error is not emitted.");
+			});
+		});
+	});
 });
