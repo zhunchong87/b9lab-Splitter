@@ -1,11 +1,12 @@
 pragma solidity ^0.4.17;
 
 contract Pausable {
-    address public owner;
-    bool isActive;
+    address private owner;
+    bool private isActive;
 
     event LogResume(address indexed sender, bool isActive);
 	event LogPause(address indexed sender, bool isActive);
+    event LogSetOwner(address indexed oldOwner, address indexed newOwner);
 
     function Pausable(bool _isActive) public {
         owner = msg.sender;
@@ -20,6 +21,30 @@ contract Pausable {
     modifier onlyActive () {
         require(isActive == true);
         _;
+    }
+
+    function getOwner()
+        public
+        view
+        returns (address)
+    {
+        return owner;
+    }
+
+    function setOwner(address newOwner)
+        public
+        onlyOwner()
+    {
+        owner = newOwner;
+        LogSetOwner(msg.sender, newOwner);
+    }
+
+    function getIsActive() 
+        public 
+        view
+        returns (bool)
+    {
+        return isActive;
     }
 
     function pause()
