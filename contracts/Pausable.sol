@@ -60,7 +60,7 @@ contract Pausable {
     	public
     	onlyOwner()
 	{
-        require(isActive == false);
+        require(!isActive);
 		isActive = true;
 		LogResume(msg.sender, isActive);
 	}
